@@ -24,6 +24,7 @@ dev = [
 
 [project.scripts]
 raggate = "raggate.__main__:main"
+raggate-dataset = "raggate.dataset.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,6 +39,7 @@ packages = ["src/raggate"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100

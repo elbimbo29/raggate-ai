@@ -1,0 +1,18 @@
+{"chunk_id": "chunk-auth-01", "section": "auth", "text": "AcmeDB authenticates requests with an API key sent in the Authorization header using the Bearer scheme. Example: Authorization: Bearer acme_live_abc123."}
+{"chunk_id": "chunk-auth-02", "section": "auth", "text": "API keys are prefixed with acme_live_ for production and acme_test_ for sandbox. Production and sandbox keys are not interchangeable."}
+{"chunk_id": "chunk-auth-03", "section": "auth", "text": "API keys can be rotated from the AcmeDB console. Old keys remain valid for 24 hours after rotation, then are automatically revoked."}
+{"chunk_id": "chunk-endpoints-01", "section": "endpoints", "text": "The /query endpoint accepts POST requests with a JSON body containing a sql field. It returns rows as a JSON array under the results key."}
+{"chunk_id": "chunk-endpoints-02", "section": "endpoints", "text": "The /databases endpoint supports GET to list databases and POST to create a new one. Creating a database requires a name and a region."}
+{"chunk_id": "chunk-endpoints-03", "section": "endpoints", "text": "The /backups endpoint lists automated backups for a database. Backups are retained for 30 days on the standard plan."}
+{"chunk_id": "chunk-endpoints-04", "section": "endpoints", "text": "The /health endpoint returns a 200 status with a JSON body containing status and version fields. It does not require authentication."}
+{"chunk_id": "chunk-data_model-01", "section": "data_model", "text": "AcmeDB databases contain tables. Each table has a name, a set of columns, and an optional primary key on one or more columns."}
+{"chunk_id": "chunk-data_model-02", "section": "data_model", "text": "Supported column types are integer, text, boolean, timestamp, and json. The json type stores arbitrary JSON documents up to 1 MB."}
+{"chunk_id": "chunk-data_model-03", "section": "data_model", "text": "Primary keys must be unique per row and are automatically indexed. Composite primary keys are supported up to four columns."}
+{"chunk_id": "chunk-limits-01", "section": "limits", "text": "The default rate limit is 100 requests per minute per API key. Requests above the limit receive a 429 response."}
+{"chunk_id": "chunk-limits-02", "section": "limits", "text": "The maximum request body size is 5 MB. Larger payloads are rejected with a 413 response before reaching the database."}
+{"chunk_id": "chunk-limits-03", "section": "limits", "text": "Each database allows up to 20 concurrent connections. Connections above the cap are queued for up to 30 seconds, then fail with a 503 response."}
+{"chunk_id": "chunk-errors-01", "section": "errors", "text": "A 400 response indicates malformed request syntax, such as invalid JSON or a missing required field. The response body includes an error_code and message."}
+{"chunk_id": "chunk-errors-02", "section": "errors", "text": "A 401 response indicates a missing or invalid API key. Check that the Authorization header is present and uses the Bearer scheme."}
+{"chunk_id": "chunk-errors-03", "section": "errors", "text": "For 429 and 503 responses, clients should retry with exponential backoff. AcmeDB recommends a base delay of 500 ms and a maximum of 5 retries."}
+{"chunk_id": "chunk-misc-01", "section": "misc", "text": "AcmeDB is available in three regions: us-east-1, eu-west-1, and ap-southeast-1. Data does not replicate across regions by default."}
+{"chunk_id": "chunk-misc-02", "section": "misc", "text": "The standard plan offers a 99.9 percent monthly uptime SLA. The enterprise plan offers 99.99 percent."}

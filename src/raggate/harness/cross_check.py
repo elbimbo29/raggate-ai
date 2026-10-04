@@ -1,9 +1,13 @@
 """RAGAS cross-check.
 
 Runs the same generation outputs through both the DeepEval judge and
-the RAGAS judge, and reports side-by-side scores. The point is not to
-declare a winner but to see whether two independent implementations
-agree — evidence that both are measuring something real.
+the RAGAS judge, and reports side-by-side scores for faithfulness and
+answer relevancy. The point is not to declare a winner but to see
+whether two independent implementations agree — evidence that both are
+measuring something real.
+
+Correctness is not cross-checked: RAGAS 0.4's collections API does not
+include a direct correctness metric.
 """
 
 from __future__ import annotations
@@ -36,6 +40,10 @@ class CrossCheckReport(BaseModel):
     cases: list[CrossCheckCase]
 
 
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
 def run_cross_check(
     cases: list[EvalCase],
     corpus: list[Chunk],
@@ -51,7 +59,9 @@ def run_cross_check(
 
     for case in cases:
         retrieved_ids = retriever.retrieve(case.question, k=k)
-        context_chunks = [chunk_lookup[cid] for cid in retrieved_ids if cid in chunk_lookup]
+        context_chunks = [
+            chunk_lookup[cid] for cid in retrieved_ids if cid in chunk_lookup
+        ]
         context_texts = [c.text for c in context_chunks]
         answer = generator.generate(case.question, context_chunks)
 
@@ -71,9 +81,6 @@ def run_cross_check(
                 ragas_relevancy=ra_relev.score,
             )
         )
-
-    def _mean(vals):
-        return sum(vals) / len(vals) if vals else 0.0
 
     return CrossCheckReport(
         n_cases=len(results),

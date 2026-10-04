@@ -2,7 +2,8 @@
 
 Implements the Judge Protocol using RAGAS 0.4's collections metrics.
 Uses an explicit AsyncOpenAI client (RAGAS 0.4 removed text-only
-llm_factory).
+llm_factory) and an OpenAI embedding client (AnswerRelevancy requires
+embeddings for its synthetic-question cosine similarity step).
 
 RAGAS 0.4 has two collections metrics that map cleanly to our
 Judge Protocol: Faithfulness and AnswerRelevancy. There is no direct
@@ -18,12 +19,14 @@ import os
 import time
 
 from openai import AsyncOpenAI
+from ragas.embeddings.base import embedding_factory
 from ragas.llms import llm_factory
 from ragas.metrics.collections import AnswerRelevancy, Faithfulness
 
 from raggate.judge.base import JudgeResult
 
 DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 _FLAT_CALL_COST_USD = 0.0002
 
 
@@ -50,13 +53,20 @@ class RagasJudge:
     def __init__(
         self,
         model: str = DEFAULT_MODEL,
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
         name: str | None = None,
     ) -> None:
         _ensure_api_key()
         self._model_name = model
+        self._embedding_model = embedding_model
         self._name = name or f"ragas-{model}"
         client = AsyncOpenAI(timeout=60.0, max_retries=2)
         self._llm = llm_factory(model, client=client)
+        self._embeddings = embedding_factory(
+            "openai",
+            model=embedding_model,
+            client=client,
+        )
 
     @property
     def name(self) -> str:
@@ -91,7 +101,7 @@ class RagasJudge:
         )
 
     def answer_relevancy(self, question: str, answer: str) -> JudgeResult:
-        metric = AnswerRelevancy(llm=self._llm)
+        metric = AnswerRelevancy(llm=self._llm, embeddings=self._embeddings)
         start = time.perf_counter()
         result = _run_async(
             metric.ascore(

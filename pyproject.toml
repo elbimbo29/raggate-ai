@@ -16,6 +16,8 @@ dependencies = [
     "sentence-transformers>=3.0",
     "deepeval>=2.0",
     "openai>=1.40",
+    "ragas>=0.4.3",
+    "langchain-community==0.4.1",
 ]
 
 [project.optional-dependencies]

@@ -66,6 +66,7 @@ Each golden case has this shape:
 
 Most cases reference a single expected chunk. A few are deliberately **cross-cutting**, referencing two chunks, so retrieval metrics have to handle multi-source ground truth.
 
+
 ### Validating the golden set
 
 ```bash
@@ -76,6 +77,40 @@ uv run raggate-dataset validate
 
 The loader fails loudly and precisely — bad lines are reported with their line number and the specific schema violation, and the command exits non-zero so it's CI-friendly.
 
+---
+
+## Retrieval Metrics
+
+RAGGate AI scores retrieval with five metrics. All are computed from ID-based ground truth (`expected_chunk_ids` in the golden set) — no LLM judge involved, so they're fast, deterministic, and free.
+
+| Metric | What it asks | Range |
+|---|---|---|
+| **hit-rate@k** | On what fraction of questions did we find at least one correct chunk in the top k? | 0.0 – 1.0 |
+| **MRR** | Where did the *first* correct chunk land in the ranking? | 0.0 – 1.0 |
+| **recall@k** | What fraction of the expected chunks made it into the top k? | 0.0 – 1.0 |
+| **context precision** | Of the chunks we retrieved, how many were relevant? (rank-weighted) | 0.0 – 1.0 |
+| **context recall** | Same as recall@k, named RAGAS-style for cross-checking. | 0.0 – 1.0 |
+
+### Two retrievers, one negative control
+
+The harness ships with two retrievers so the metrics can be validated against a known-good and a known-weak baseline:
+
+- **`keyword`** — token-overlap baseline. Deterministic, no dependencies, intentionally weak. Acts as a **negative control**: if the harness can't detect this retriever's failures, the harness is broken.
+- **`chroma`** — sentence-embedding retriever over the same corpus (`all-MiniLM-L6-v2`, cosine similarity). Should clearly beat keyword.
+
+```bash
+uv run raggate-retrieval run --retriever keyword --k 5
+uv run raggate-retrieval run --retriever chroma  --k 5
+```
+
+![Retrieval comparison](docs/phase2-retrieval-comparison.png)
+
+Two things the comparison shows:
+
+1. **The keyword baseline fails visibly.** Questions like *"How do I authenticate?"* return zero chunks — the corpus says *"authenticates"*, and token overlap misses it. The metrics catch this: `hit_rate@5` and `context_precision` drop meaningfully.
+2. **The embedding retriever closes the gap.** Same corpus, same golden set, same metrics — only the retrieval method changed. That's the harness doing its job.
+
+Every run writes a JSON report to `reports/`, containing both the aggregate metrics and the per-case detail. Those JSON files are what the regression gate (Phase 5) will compare.
 ---
 
 ## Stack

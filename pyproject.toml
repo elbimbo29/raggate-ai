@@ -33,6 +33,7 @@ dev = [
 raggate = "raggate.__main__:main"
 raggate-dataset = "raggate.dataset.cli:main"
 raggate-retrieval = "raggate.harness.cli:main"
+raggate-generation = "raggate.harness.generation_cli:main"
 
 [build-system]
 requires = ["hatchling"]

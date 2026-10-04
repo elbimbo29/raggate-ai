@@ -113,6 +113,42 @@ Two things the comparison shows:
 Every run writes a JSON report to `reports/`, containing both the aggregate metrics and the per-case detail. Those JSON files are what the regression gate (Phase 5) will compare.
 ---
 
+## Generation Metrics
+
+Retrieval metrics tell you whether the *right chunks* came back. Generation metrics tell you whether the *answer* is any good. These require an **LLM judge** — a model that reads the answer alongside the question and context and scores it.
+
+RAGGate AI supports three generation metrics via two independent judge backends (DeepEval and RAGAS), with `gpt-4o-mini` as the judge model.
+
+| Metric | What it asks |
+|---|---|
+| **Faithfulness** | Is the answer supported by the retrieved context? (Catches hallucination.) |
+| **Answer relevancy** | Does the answer actually address the question? |
+| **Answer correctness** | Does the answer match the reference answer? (DeepEval only — RAGAS 0.4 dropped this metric.) |
+
+Every judge call tracks **cost** and **latency**, because in production those matter as much as the score. A full 20-case run with three generation metrics takes roughly **7 minutes** and costs **~$0.01** with `gpt-4o-mini`.
+
+### Two judges, one cross-check
+
+Because LLM-judged metrics are *approximations* rather than ground truth, RAGGate AI ships with two independent judge backends — DeepEval and RAGAS — and runs the same inputs through both:
+
+| Metric | DeepEval | RAGAS | Δ |
+|---|---|---|---|
+| Faithfulness | 0.9678 | 0.9773 | −0.0095 |
+| Answer relevancy | 0.3754 | 0.7274 | −0.3520 |
+
+**Faithfulness agrees almost exactly** — both frameworks operationalize "supported by context" the same way, and the scores confirm the template generator is highly faithful (it copies context verbatim).
+
+**Relevancy diverges by 0.35.** Both frameworks are "right" — they just define relevancy differently. DeepEval generates candidate questions from the answer and scores how well they match the original question; RAGAS uses synthetic-question cosine similarity. The template generator ignores the question entirely, so a stricter relevancy metric sees it as less relevant than a lenient one does.
+
+The honest takeaway: **an LLM-judged score is only meaningful alongside the rubric that produced it.** Cross-checking against a second framework is cheap and worth doing.
+
+![Cross-check and generation metrics](docs/phase3-cross-check.png)
+
+### A note on non-determinism
+
+Rerunning the same generation evaluation produces slightly different scores. In two back-to-back runs, DeepEval's answer relevancy on the same inputs moved from 0.3409 to 0.3754. This is inherent to LLM-as-judge — the model is stochastic. It's why the regression gate (Phase 5) uses **thresholds** rather than exact equality, and why the dashboard (Phase 6) shows run-over-run trends rather than single points.
+
+---
 ## Stack
 
 | Concern | Choice |

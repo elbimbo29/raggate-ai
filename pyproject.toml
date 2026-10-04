@@ -14,6 +14,8 @@ dependencies = [
     "pydantic-settings>=2.3",
     "chromadb>=0.5",
     "sentence-transformers>=3.0",
+    "deepeval>=2.0",
+    "openai>=1.40",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +46,10 @@ packages = ["src/raggate"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["src"]
+filterwarnings = ["ignore::DeprecationWarning:starlette.*"]
+markers = ["live: tests that call external APIs (require OPENAI_API_KEY)",
+]
+
 
 [tool.ruff]
 line-length = 100

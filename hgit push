@@ -1,0 +1,17 @@
+[33mcommit cf353db7d31c4454240463a71cc16bb689173769[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Bimbo Tucay <nfungible@protonmail.com>
+Date:   Fri Oct 2 11:27:02 2026 +0800
+
+    Phase 1: golden dataset, corpus, loader, CLI, tests, README
+
+ README.md                       | 117 [32m++++++++++++++++++++++++++++++++++[m[31m------[m
+ data/corpus/acmedb.jsonl        |  18 [32m+++++++[m
+ data/golden/golden.jsonl        |  20 [32m+++++++[m
+ pyproject.toml                  |   4 [32m+[m[31m-[m
+ src/raggate/dataset/__init__.py |   0
+ src/raggate/dataset/cli.py      |  74 [32m+++++++++++++++++++++++++[m
+ src/raggate/dataset/loader.py   |  72 [32m+++++++++++++++++++++++++[m
+ src/raggate/dataset/models.py   |  74 [32m+++++++++++++++++++++++++[m
+ tests/test_dataset_loader.py    | 110 [32m+++++++++++++++++++++++++++++++++++++[m
+ tests/test_dataset_models.py    |  83 [32m++++++++++++++++++++++++++++[m
+ 10 files changed, 554 insertions(+), 18 deletions(-)

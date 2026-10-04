@@ -1,10 +1,15 @@
 """Tests for the golden-set loader."""
 
+
 import json
+from pathlib import Path
 
 import pytest
 
 from raggate.dataset.loader import DatasetError, load_cases
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 
 def _write(tmp_path, lines: list[str]):
@@ -83,10 +88,6 @@ def test_multiple_errors_all_reported(tmp_path):
     msg = str(exc.value)
     assert "line 2" in msg
     assert "line 3" in msg
-
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_shipped_golden_set_is_valid():

@@ -109,13 +109,24 @@ class DeepEvalJudge:
         answer: str,
         reference: str,
     ) -> JudgeResult:
-        # DeepEval's AnswerCorrectnessMetric lives in deepeval.metrics.
-        from deepeval.metrics import AnswerCorrectnessMetric
+        from deepeval.metrics import GEval
+        from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
-        metric = AnswerCorrectnessMetric(
+        metric = GEval(
+            name="AnswerCorrectness",
             model=self._model,
-            include_reason=True,
-            async_mode=False,
+            criteria=(
+                "Determine whether the actual output is factually correct "
+                "based on the expected output. Score 1.0 if the actual output "
+                "conveys the same facts as the expected output, 0.0 if it "
+                "contradicts or omits the key facts."
+            ),
+            evaluation_params=[
+                LLMTestCaseParams.INPUT,
+                LLMTestCaseParams.ACTUAL_OUTPUT,
+                LLMTestCaseParams.EXPECTED_OUTPUT,
+            ],
+            threshold=0.5,
         )
         test_case = LLMTestCase(
             input=question,

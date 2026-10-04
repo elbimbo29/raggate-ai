@@ -19,7 +19,7 @@ from deepeval.metrics import (
     AnswerRelevancyMetric,
     FaithfulnessMetric,
 )
-from deepeval.models import GPTModel
+from deepeval.models import OpenAIModel
 from deepeval.test_case import LLMTestCase
 
 from raggate.judge.base import JudgeResult
@@ -50,7 +50,7 @@ class DeepEvalJudge:
         _ensure_api_key()
         self._model_name = model
         self._name = name or f"deepeval-{model}"
-        self._model = GPTModel(model=model)
+        self._model = OpenAIModel(model=model)
 
     @property
     def name(self) -> str:

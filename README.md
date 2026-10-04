@@ -24,7 +24,7 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 |---|---|---|
 | 0 | Project skeleton & foundation | ✅ Done |
 | 1 | Dataset & golden set | ✅ Done |
-| 2 | Retrieval scoring | ⏳ Next |
+| 2 | Retrieval scoring | ✅ Done |
 | 3 | Generation scoring | ⏳ |
 | 4 | FastAPI service | ⏳ |
 | 5 | Regression gate | ⏳ |

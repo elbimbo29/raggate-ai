@@ -4,7 +4,7 @@
 
 RAGGate AI scores the retrieval and generation quality of a RAG pipeline against a golden dataset, then enforces a regression gate in CI — so quality drops are caught before they ship.
 
-> **Status:** Phase 1 complete — golden dataset and loader. Retrieval scoring lands in Phase 2.
+> **Status:** Phase 4 complete — HTTP service with run persistence and comparison. Regression gate lands in Phase 5.
 
 ---
 
@@ -25,8 +25,8 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 | 0 | Project skeleton & foundation | ✅ Done |
 | 1 | Dataset & golden set | ✅ Done |
 | 2 | Retrieval scoring | ✅ Done |
-| 3 | Generation scoring | ⏳ |
-| 4 | FastAPI service | ⏳ |
+| 3 | Generation scoring | ✅ Done |
+| 4 | FastAPI service | ✅ Done |
 | 5 | Regression gate | ⏳ |
 | 6 | Dashboard & observability | ⏳ |
 | 7 | CI integration, polish, demo | ⏳ |
@@ -35,9 +35,11 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 
 ## What works today
 
-- **FastAPI service** boots with a health endpoint:
-  `GET /health` → `{"status": "ok", "version": "0.1.0", "env": "dev"}`
-- **Golden dataset** with 20 curated cases, validated by a CLI.
+- **Golden dataset** with 20 curated cases over an 18-chunk AcmeDB corpus.
+- **Five retrieval metrics** — hit-rate@k, MRR, recall@k, context precision, context recall — with hand-computed tests.
+- **Three generation metrics** — faithfulness, answer relevancy, answer correctness — scored by DeepEval and cross-checked against RAGAS.
+- **Two retrievers** — keyword baseline (negative control) and Chroma + MiniLM embeddings.
+- **HTTP service** with run persistence, background execution, list/fetch, and side-by-side comparison.
 
 ---
 
@@ -148,6 +150,43 @@ The honest takeaway: **an LLM-judged score is only meaningful alongside the rubr
 
 Rerunning the same generation evaluation produces slightly different scores. In two back-to-back runs, DeepEval's answer relevancy on the same inputs moved from 0.3409 to 0.3754. This is inherent to LLM-as-judge — the model is stochastic. It's why the regression gate (Phase 5) uses **thresholds** rather than exact equality, and why the dashboard (Phase 6) shows run-over-run trends rather than single points.
 
+---
+
+## Service API
+
+Everything above is exposed over HTTP. Runs are persisted to SQLite, and clients can start a run, poll its status, fetch its full report, and compare two runs side by side.
+
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/health` | GET | Service health and version. |
+| `/eval/run` | POST | Start an evaluation run. Returns a `run_id` immediately (202). |
+| `/eval/runs` | GET | List recent runs, newest first. Filter with `?kind=retrieval\|generation`, cap with `?limit=N`. |
+| `/eval/runs/{run_id}` | GET | Fetch a run's summary plus every per-case result. |
+| `/eval/compare` | POST | Compare two runs' metrics, return per-metric deltas. |
+
+![OpenAPI docs](docs/phase4-openapi.png)
+
+### Background execution
+
+A generation run takes 5–10 minutes. `POST /eval/run` doesn't block — it inserts a `pending` run record, schedules the work as a background task, and returns the run ID immediately. Clients poll `GET /eval/runs/{id}` to see status transition through `pending → running → succeeded` (or `failed`, with the error message stored on the record).
+
+### Compare in action
+
+The same two retrievers from Phase 2, now compared over HTTP:
+
+```bash
+curl -X POST http://127.0.0.1:8000/eval/compare \
+  -H "Content-Type: application/json" \
+  -d '{"baseline_run_id":"<keyword-run>","candidate_run_id":"<chroma-run>"}'
+```
+
+![Compare endpoint](docs/phase4-compare.png)
+
+Every metric moves in the right direction: `hit_rate@5`, `mrr`, `recall@5`, `context_precision`, and `context_recall` all improve when the retriever changes from keyword overlap to embeddings. **This is the seed of the regression gate** — Phase 5 adds thresholds so the endpoint returns a pass/fail verdict instead of raw numbers.
+
+### Persistence
+
+Runs and per-case results are stored in SQLite via a `RunStore` interface. The concrete `SQLiteRunStore` is the only implementation today; a Postgres implementation is a drop-in (the API layer only knows the interface). The database lives at `data/raggate.sqlite` by default, configurable via `RAGGATE_DB_PATH`.
 ---
 ## Stack
 

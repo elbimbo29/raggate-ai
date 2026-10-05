@@ -1,0 +1,14 @@
+{
+  "retrieval": {
+    "hit_rate@5": 0.02,
+    "mrr": 0.02,
+    "recall@5": 0.02,
+    "context_precision": 0.02,
+    "context_recall": 0.02
+  },
+  "generation": {
+    "faithfulness": 0.10,
+    "answer_relevancy": 0.15,
+    "answer_correctness": 0.15
+  }
+}

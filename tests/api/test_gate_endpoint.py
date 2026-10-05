@@ -119,3 +119,41 @@ def test_gate_kind_mismatch_400(client):
     )
     assert resp.status_code == 400
     assert "different run kinds" in resp.json()["detail"]
+
+def test_gate_refuses_pending_runs(client):
+    """If either run hasn't finished, the gate must 409, not compare
+    against placeholder metrics."""
+    from datetime import UTC, datetime
+
+    from raggate.main import get_store
+    from raggate.storage.base import RunRecord
+
+    pending = RunRecord(
+        id="pending-run",
+        kind="retrieval",
+        created_at=datetime.now(UTC).isoformat(),
+        retriever_name="chroma-minilm",
+        generator_name=None,
+        judge_name=None,
+        k=5,
+        n_cases=0,
+        cost_usd=0.0,
+        latency_ms=0.0,
+        metrics={},
+        status="pending",
+        error=None,
+    )
+    get_store().save_run(pending, [])
+
+    cand_id = _start_run(client)
+    resp = client.post(
+        "/eval/gate",
+        json={
+            "baseline_run_id": "pending-run",
+            "candidate_run_id": cand_id,
+            "thresholds": {"mrr": 0.05},
+        },
+    )
+    assert resp.status_code == 409
+    assert "not finished" in resp.json()["detail"]
+    

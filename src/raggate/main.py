@@ -173,9 +173,16 @@ def compare_runs(req: CompareRequest) -> CompareResponse:
         candidate_metrics=candidate.metrics,
         deltas=deltas,
     )
+
+
 @app.post("/eval/gate", response_model=GateResponse)
 def gate_runs(req: GateRequest) -> GateResponse:
-    """Compare two runs and return a pass/fail verdict."""
+    """Compare two runs and return a pass/fail verdict.
+
+    Refuses to gate a run that isn't finished — comparing against a
+    placeholder record would silently produce nonsense (all-zero
+    baseline, everything looks like an improvement).
+    """
     store = get_store()
 
     baseline = store.get_run(req.baseline_run_id)
@@ -201,6 +208,17 @@ def gate_runs(req: GateRequest) -> GateResponse:
             ),
         )
 
+    if baseline.status != "succeeded":
+        raise HTTPException(
+            status_code=409,
+            detail=f"baseline run is not finished: status={baseline.status!r}",
+        )
+    if candidate.status != "succeeded":
+        raise HTTPException(
+            status_code=409,
+            detail=f"candidate run is not finished: status={candidate.status!r}",
+        )
+
     result = evaluate_gate(
         baseline_metrics=baseline.metrics,
         candidate_metrics=candidate.metrics,
@@ -220,6 +238,7 @@ def gate_runs(req: GateRequest) -> GateResponse:
         ],
         unchanged=result.unchanged,
     )
+
 
 def _record_to_summary(record: RunRecord) -> RunSummary:
     return RunSummary(

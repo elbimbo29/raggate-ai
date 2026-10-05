@@ -29,7 +29,8 @@ class RunRecord:
     cost_usd: float
     latency_ms: float
     metrics: dict[str, float]
-
+    status: str = "succeeded"  # 'pending' | 'running' | 'succeeded' | 'failed'
+    error: str | None = None
 
 @dataclass
 class CaseRecord:
@@ -64,4 +65,21 @@ class RunStore(Protocol):
         limit: int = 20,
     ) -> list[RunRecord]:
         """List recent runs, newest first, optionally filtered by kind."""
+        ...
+
+        def update_run(
+        self,
+        run_id: str,
+        *,
+        status: str | None = None,
+        error: str | None = None,
+        metrics: dict[str, float] | None = None,
+        cost_usd: float | None = None,
+        latency_ms: float | None = None,
+        n_cases: int | None = None,
+    ) -> None: ...
+
+
+    def delete_run(self, run_id: str) -> None:
+        """Delete a run and its cases. No-op if missing."""
         ...

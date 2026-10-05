@@ -4,7 +4,7 @@
 
 RAGGate AI scores the retrieval and generation quality of a RAG pipeline against a golden dataset, then enforces a regression gate in CI — so quality drops are caught before they ship.
 
-> **Status:** Phase 4 complete — HTTP service with run persistence and comparison. Regression gate lands in Phase 5.
+> **Status:** Phase 5 complete — regression gate with thresholds, CLI, and CI-ready exit codes. Dashboard lands in Phase 6.
 
 ---
 
@@ -25,7 +25,7 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 | 2 | Retrieval scoring | ✅ Done |
 | 3 | Generation scoring | ✅ Done |
 | 4 | FastAPI service | ✅ Done |
-| 5 | Regression gate | ⏳ Next |
+| 5 | Regression gate | ✅ Done |
 | 6 | Dashboard & observability | ⏳ |
 | 7 | CI integration, polish, demo | ⏳ |
 ---
@@ -37,6 +37,7 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 - **Three generation metrics** — faithfulness, answer relevancy, answer correctness — scored by DeepEval and cross-checked against RAGAS.
 - **Two retrievers** — keyword baseline (negative control) and Chroma + MiniLM embeddings.
 - **HTTP service** with run persistence, background execution, list/fetch, and side-by-side comparison.
+- **Regression gate** with configurable thresholds, a CI-facing CLI, and a one-command demo.
 ---
 
 ## The Dataset
@@ -182,6 +183,92 @@ Every metric moves in the right direction: `hit_rate@5`, `mrr`, `recall@5`, `con
 ### Persistence
 
 Runs and per-case results are stored in SQLite via a `RunStore` interface. The concrete `SQLiteRunStore` is the only implementation today; a Postgres implementation is a drop-in (the API layer only knows the interface). The database lives at `data/raggate.sqlite` by default, configurable via `RAGGATE_DB_PATH`.
+
+---
+
+## The Regression Gate
+
+Retrieval and generation metrics tell you what the quality *is*. The gate tells you whether a change is **allowed to ship**.
+
+Given two stored runs — a baseline and a candidate — the gate compares their metrics against configurable thresholds and returns a pass/fail verdict. It's exposed three ways:
+
+- **HTTP**: `POST /eval/gate`
+- **CLI**: `raggate-gate check --baseline <id> --candidate <id>`
+- **One-command demo**: `bash scripts/demo_gate.sh`
+
+### How it works
+
+Thresholds are **max allowed absolute drops** per metric, stored in `config/thresholds.json`:
+
+```json
+{
+  "retrieval": {
+    "hit_rate@5": 0.02,
+    "mrr": 0.02,
+    "recall@5": 0.02,
+    "context_precision": 0.02,
+    "context_recall": 0.02
+  },
+  "generation": {
+    "faithfulness": 0.10,
+    "answer_relevancy": 0.15,
+    "answer_correctness": 0.15
+  }
+}
+```
+
+A metric **fails the gate** if `baseline - candidate > threshold`. Metrics without an explicit threshold are reported but can't fail the gate — adding a new metric to the harness shouldn't silently start blocking builds.
+
+Retrieval thresholds are tight (0.02) because retrieval metrics are deterministic. Generation thresholds are looser (0.10–0.15) because LLM-judged metrics vary run to run even on identical inputs — we measured ~0.03 noise between runs of the same setup in Phase 3.
+
+### Why thresholds live in a file
+
+A PR that loosens a threshold is a PR that changes what the gate catches. Putting thresholds in version control makes that change **visible in review** instead of buried in a shell command. This is a small thing that matters a lot in practice — gate config that isn't reviewed eventually becomes gate config nobody understands.
+
+### CI-facing CLI
+
+```
+$ raggate-gate check --baseline <id> --candidate <id>
+[FAIL] gate  kind=retrieval
+  baseline:  5290170018eb4e419602b19738cfd531
+  candidate: 3844b06dba7c434290c1b9a3c43029d9
+
+  regressions:
+   * context_recall    baseline=1.0000  candidate=0.9250  delta=-0.0750  threshold=0.0200
+   * recall@5          baseline=1.0000  candidate=0.9250  delta=-0.0750  threshold=0.0200
+   * hit_rate@5        baseline=1.0000  candidate=0.9500  delta=-0.0500  threshold=0.0200
+   * mrr               baseline=0.9042  candidate=0.8625  delta=-0.0417  threshold=0.0200
+   * context_precision baseline=0.8917  candidate=0.8625  delta=-0.0292  threshold=0.0200
+
+$ echo $?
+1
+```
+
+Exit codes: `0` pass, `1` regression, `2` error. That's what a GitHub Actions step needs to block a merge.
+
+![Gate CLI failing](docs/phase5-cli-gate.png)
+
+### The whole story in one command
+
+```bash
+bash scripts/demo_gate.sh
+```
+
+The script:
+1. Starts the API server and waits for health
+2. Runs the chroma retriever as baseline
+3. Runs the keyword retriever as candidate (a real regression)
+4. Gates baseline → candidate and asserts `exit=1`
+5. Gates candidate → baseline and asserts `exit=0`
+6. Kills the server on exit
+
+![Gate demo](docs/phase5-demo.png)
+
+### Two lessons the gate taught us
+
+**1. The gate refuses to judge unfinished work.** Early in Phase 5, we hit a case where a pending run was gated against a completed one. Because pending runs have empty metrics, the gate happily reported "everything improved!" — nonsense. Fixed by returning HTTP 409 if either run's status isn't `succeeded`. Comparing against incomplete data is worse than not comparing at all.
+
+**2. Threshold tuning is the hard part.** At `k=3`, chroma-vs-keyword produces a 0.05 drop on `hit_rate@3` and a 0.04 drop on `mrr` — right on the edge of a 0.05 threshold. Whether that counts as a regression is a judgment call the threshold encodes. Too tight, and every noise fluctuation fails the build. Too loose, and real regressions slip through. This is why the harness treats thresholds as **config, not code** — so a team can tune them per metric without touching the gate logic.
 ---
 ## Stack
 

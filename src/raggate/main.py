@@ -9,6 +9,9 @@ from raggate import __version__
 from raggate.api.schemas import (
     CompareRequest,
     CompareResponse,
+    GateRequest,
+    GateResponse,
+    MetricDeltaResponse,
     RunDetail,
     RunRequest,
     RunResponse,
@@ -16,6 +19,8 @@ from raggate.api.schemas import (
 )
 from raggate.api.service import execute_run
 from raggate.config import settings
+from raggate.gate.evaluator import evaluate_gate
+from raggate.gate.models import Thresholds
 from raggate.storage.base import RunRecord
 from raggate.storage.sqlite import SQLiteRunStore, new_run_id
 
@@ -168,7 +173,53 @@ def compare_runs(req: CompareRequest) -> CompareResponse:
         candidate_metrics=candidate.metrics,
         deltas=deltas,
     )
+@app.post("/eval/gate", response_model=GateResponse)
+def gate_runs(req: GateRequest) -> GateResponse:
+    """Compare two runs and return a pass/fail verdict."""
+    store = get_store()
 
+    baseline = store.get_run(req.baseline_run_id)
+    if baseline is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"baseline run not found: {req.baseline_run_id}",
+        )
+
+    candidate = store.get_run(req.candidate_run_id)
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"candidate run not found: {req.candidate_run_id}",
+        )
+
+    if baseline.kind != candidate.kind:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"cannot gate different run kinds: "
+                f"{baseline.kind} vs {candidate.kind}"
+            ),
+        )
+
+    result = evaluate_gate(
+        baseline_metrics=baseline.metrics,
+        candidate_metrics=candidate.metrics,
+        thresholds=Thresholds(per_metric=req.thresholds),
+    )
+
+    return GateResponse(
+        passed=result.passed,
+        baseline_run_id=baseline.id,
+        candidate_run_id=candidate.id,
+        kind=baseline.kind,  # type: ignore[arg-type]
+        regressions=[
+            MetricDeltaResponse(**r.model_dump()) for r in result.regressions
+        ],
+        improvements=[
+            MetricDeltaResponse(**r.model_dump()) for r in result.improvements
+        ],
+        unchanged=result.unchanged,
+    )
 
 def _record_to_summary(record: RunRecord) -> RunSummary:
     return RunSummary(

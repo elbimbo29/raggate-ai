@@ -103,3 +103,38 @@ class CompareResponse(BaseModel):
         ...,
         description="candidate - baseline, for each metric present in either run.",
     )
+
+# ---------- gate ----------
+
+class GateRequest(BaseModel):
+    """Body for POST /eval/gate."""
+
+    baseline_run_id: str = Field(..., min_length=1)
+    candidate_run_id: str = Field(..., min_length=1)
+    thresholds: dict[str, float] = Field(
+        ...,
+        description=(
+            "Metric name -> max allowed absolute drop. Positive values. "
+            "Example: {'hit_rate@5': 0.05, 'mrr': 0.05}."
+        ),
+    )
+
+
+class MetricDeltaResponse(BaseModel):
+    metric: str
+    baseline: float
+    candidate: float
+    delta: float
+    threshold: float
+
+
+class GateResponse(BaseModel):
+    """Response for POST /eval/gate."""
+
+    passed: bool
+    baseline_run_id: str
+    candidate_run_id: str
+    kind: RunKind
+    regressions: list[MetricDeltaResponse]
+    improvements: list[MetricDeltaResponse]
+    unchanged: list[str]    

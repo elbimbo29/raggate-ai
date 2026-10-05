@@ -20,27 +20,23 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 
 ## Status
 
-| Phase | Description | State |
-|---|---|---|
 | 0 | Project skeleton & foundation | ✅ Done |
 | 1 | Dataset & golden set | ✅ Done |
 | 2 | Retrieval scoring | ✅ Done |
 | 3 | Generation scoring | ✅ Done |
 | 4 | FastAPI service | ✅ Done |
-| 5 | Regression gate | ⏳ |
+| 5 | Regression gate | ⏳ Next |
 | 6 | Dashboard & observability | ⏳ |
 | 7 | CI integration, polish, demo | ⏳ |
-
 ---
 
 ## What works today
 
-- **Golden dataset** with 20 curated cases over an 18-chunk AcmeDB corpus.
+- **Golden dataset** with 20 curated cases over an 18-chunk AcmeDB corpus, validated by a CLI.
 - **Five retrieval metrics** — hit-rate@k, MRR, recall@k, context precision, context recall — with hand-computed tests.
 - **Three generation metrics** — faithfulness, answer relevancy, answer correctness — scored by DeepEval and cross-checked against RAGAS.
 - **Two retrievers** — keyword baseline (negative control) and Chroma + MiniLM embeddings.
 - **HTTP service** with run persistence, background execution, list/fetch, and side-by-side comparison.
-
 ---
 
 ## The Dataset
@@ -151,7 +147,6 @@ The honest takeaway: **an LLM-judged score is only meaningful alongside the rubr
 Rerunning the same generation evaluation produces slightly different scores. In two back-to-back runs, DeepEval's answer relevancy on the same inputs moved from 0.3409 to 0.3754. This is inherent to LLM-as-judge — the model is stochastic. It's why the regression gate (Phase 5) uses **thresholds** rather than exact equality, and why the dashboard (Phase 6) shows run-over-run trends rather than single points.
 
 ---
-
 ## Service API
 
 Everything above is exposed over HTTP. Runs are persisted to SQLite, and clients can start a run, poll its status, fetch its full report, and compare two runs side by side.

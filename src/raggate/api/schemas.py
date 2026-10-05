@@ -68,6 +68,7 @@ class RunSummary(BaseModel):
 
     id: str
     kind: RunKind
+    status: RunStatus
     created_at: str
     retriever_name: str
     generator_name: str | None
@@ -77,6 +78,7 @@ class RunSummary(BaseModel):
     cost_usd: float
     latency_ms: float
     metrics: dict[str, float]
+    error: str | None = None
 
 
 class RunDetail(BaseModel):

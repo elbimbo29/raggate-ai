@@ -66,6 +66,7 @@ def test_run_summary_roundtrip():
     summary = RunSummary(
         id="abc123",
         kind="retrieval",
+        status="succeeded",
         created_at="2026-10-05T00:00:00+00:00",
         retriever_name="chroma-minilm",
         generator_name=None,
@@ -78,13 +79,13 @@ def test_run_summary_roundtrip():
     )
     assert summary.metrics["hit_rate@5"] == 0.9
 
-
 # ---------- RunDetail ----------
 
 def test_run_detail_wraps_summary_and_cases():
     summary = RunSummary(
         id="abc123",
         kind="retrieval",
+        status="succeeded",
         created_at="2026-10-05T00:00:00+00:00",
         retriever_name="chroma-minilm",
         generator_name=None,
@@ -97,7 +98,6 @@ def test_run_detail_wraps_summary_and_cases():
     )
     detail = RunDetail(summary=summary, cases=[{"case_id": "auth-001"}])
     assert detail.cases[0]["case_id"] == "auth-001"
-
 
 # ---------- CompareRequest ----------
 

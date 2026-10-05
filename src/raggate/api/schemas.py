@@ -92,11 +92,14 @@ class RunDetail(BaseModel):
 
 
 class CompareResponse(BaseModel):
-    """Response for POST /eval/compare — reserved for Phase 5's gate."""
+    """Response for POST /eval/compare."""
 
     baseline_run_id: str
     candidate_run_id: str
     kind: RunKind
     baseline_metrics: dict[str, float]
     candidate_metrics: dict[str, float]
-    deltas: dict[str, float]
+    deltas: dict[str, float] = Field(
+        ...,
+        description="candidate - baseline, for each metric present in either run.",
+    )

@@ -1,11 +1,14 @@
 """FastAPI entrypoint for RAGGate AI."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
 from raggate import __version__
 from raggate.api.schemas import (
+    CompareRequest,
+    CompareResponse,
     RunDetail,
     RunRequest,
     RunResponse,
@@ -35,8 +38,8 @@ def get_store() -> SQLiteRunStore:
     return _store
 
 
-def set_store(store: SQLiteRunStore) -> None:
-    """Test hook — swap in an in-memory store."""
+def set_store(store: SQLiteRunStore | None) -> None:
+    """Test hook — swap in an in-memory store, or reset with None."""
     global _store
     _store = store
 
@@ -61,12 +64,6 @@ def start_run(req: RunRequest, background: BackgroundTasks) -> RunResponse:
 
     store = get_store()
     run_id = new_run_id()
-
-    # Insert a placeholder run so GET /eval/runs/{id} returns something
-    # immediately after this call returns.
-    from datetime import UTC, datetime
-
-    from raggate.storage.base import RunRecord
 
     placeholder = RunRecord(
         id=run_id,
@@ -100,6 +97,7 @@ def start_run(req: RunRequest, background: BackgroundTasks) -> RunResponse:
 
     return RunResponse(run_id=run_id, status="pending")
 
+
 @app.get("/eval/runs", response_model=list[RunSummary])
 def list_runs(
     kind: str | None = Query(
@@ -128,6 +126,50 @@ def get_run(run_id: str) -> RunDetail:
     )
 
 
+@app.post("/eval/compare", response_model=CompareResponse)
+def compare_runs(req: CompareRequest) -> CompareResponse:
+    """Compare two runs' metrics, return per-metric deltas."""
+    store = get_store()
+
+    baseline = store.get_run(req.baseline_run_id)
+    if baseline is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"baseline run not found: {req.baseline_run_id}",
+        )
+
+    candidate = store.get_run(req.candidate_run_id)
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"candidate run not found: {req.candidate_run_id}",
+        )
+
+    if baseline.kind != candidate.kind:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"cannot compare different run kinds: "
+                f"{baseline.kind} vs {candidate.kind}"
+            ),
+        )
+
+    all_keys = set(baseline.metrics) | set(candidate.metrics)
+    deltas = {
+        k: candidate.metrics.get(k, 0.0) - baseline.metrics.get(k, 0.0)
+        for k in all_keys
+    }
+
+    return CompareResponse(
+        baseline_run_id=baseline.id,
+        candidate_run_id=candidate.id,
+        kind=baseline.kind,  # type: ignore[arg-type]
+        baseline_metrics=baseline.metrics,
+        candidate_metrics=candidate.metrics,
+        deltas=deltas,
+    )
+
+
 def _record_to_summary(record: RunRecord) -> RunSummary:
     return RunSummary(
         id=record.id,
@@ -143,4 +185,4 @@ def _record_to_summary(record: RunRecord) -> RunSummary:
         latency_ms=record.latency_ms,
         metrics=record.metrics,
         error=record.error,
-    )  
+    )

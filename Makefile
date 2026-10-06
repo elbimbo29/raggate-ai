@@ -8,9 +8,13 @@ help:
 	@echo "  make fmt    : ruff format + import sort"
 	@echo "  make check  : lint + test"
 	@echo "  make clean  : remove caches and local artifacts"
+	@echo "  make dashboard : boot the Streamlit dashboard"
 
 dev:
 	uv run raggate
+
+dashboard:
+	uv run streamlit run src/raggate/dashboard/app.py
 
 test:
 	uv run pytest -v

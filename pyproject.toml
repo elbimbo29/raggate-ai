@@ -18,6 +18,7 @@ dependencies = [
     "openai>=1.40",
     "ragas>=0.4.3",
     "langchain-community==0.4.1",
+    "streamlit>=1.40",
 ]
 
 [project.optional-dependencies]

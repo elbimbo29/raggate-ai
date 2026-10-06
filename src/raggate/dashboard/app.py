@@ -15,11 +15,10 @@ import pandas as pd
 import streamlit as st
 
 from raggate.config import settings
-from raggate.storage.sqlite import SQLiteRunStore
-
 from raggate.gate.config import DEFAULT_PATH as DEFAULT_THRESHOLDS_PATH
 from raggate.gate.config import ThresholdsConfigError, load_thresholds
 from raggate.gate.evaluator import evaluate_gate
+from raggate.storage.sqlite import SQLiteRunStore
 
 st.set_page_config(
     page_title="RAGGate AI",

@@ -17,6 +17,21 @@ from raggate.retriever.corpus import Chunk
 
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
+_EMBEDDER_CACHE: dict[str, embedding_functions.SentenceTransformerEmbeddingFunction] = {}
+
+def _get_embedder(model_name: str):
+    """Get or create a shared embedding function for this model name.
+
+    Loading MiniLM takes 15-20s. Sharing one instance across all
+    ChromaRetriever objects in the process means we pay it once.
+    """
+    if model_name not in _EMBEDDER_CACHE:
+        _EMBEDDER_CACHE[model_name] = (
+            embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=model_name
+            )
+        )
+    return _EMBEDDER_CACHE[model_name]
 
 class ChromaRetriever:
     """Retrieve chunks by embedding similarity."""
@@ -32,9 +47,7 @@ class ChromaRetriever:
         self._model_name = model_name
 
         self._client = chromadb.Client()  # ephemeral, in-memory
-        self._embedder = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=model_name
-        )
+        self._embedder = _get_embedder(model_name)
         self._collection = self._client.create_collection(
             name="acmedb",
             embedding_function=self._embedder,

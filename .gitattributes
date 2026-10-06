@@ -1,0 +1,15 @@
+cat > .gitattributes << 'EOF'
+# Default: normalize to LF on commit, native on checkout
+* text=auto eol=lf
+
+# Shell scripts must always be LF, even on Windows
+*.sh text eol=lf
+
+# Binary files — never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+EOF

@@ -18,6 +18,7 @@ from raggate.gate.evaluator import evaluate_gate
 from raggate.harness.retrieval_runner import run_retrieval
 from raggate.retriever.chroma import ChromaRetriever
 from raggate.retriever.corpus import load_corpus
+from raggate.retriever.keyword import KeywordRetriever
 
 BASELINE_PATH = Path("config/baseline.json")
 GOLDEN_PATH = Path("data/golden/golden.jsonl")
@@ -35,7 +36,7 @@ def main() -> int:
 
     cases = load_cases(GOLDEN_PATH)
     corpus = load_corpus(CORPUS_PATH)
-    retriever = ChromaRetriever(corpus)
+    retriever = KeywordRetriever(corpus)
 
     report = run_retrieval(cases, retriever, k=k)
 

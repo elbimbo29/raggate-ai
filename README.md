@@ -4,7 +4,7 @@
 
 RAGGate AI scores the retrieval and generation quality of a RAG pipeline against a golden dataset, then enforces a regression gate in CI — so quality drops are caught before they ship.
 
-> **Status:** Phase 5 complete — regression gate with thresholds, CLI, and CI-ready exit codes. Dashboard lands in Phase 6.
+> **Status:** Phase 6 complete — Streamlit dashboard with Runs, Compare, and Gate views. CI integration lands in Phase 7.
 
 ---
 
@@ -26,8 +26,8 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 | 3 | Generation scoring | ✅ Done |
 | 4 | FastAPI service | ✅ Done |
 | 5 | Regression gate | ✅ Done |
-| 6 | Dashboard & observability | ⏳ |
-| 7 | CI integration, polish, demo | ⏳ |
+| 6 | Dashboard & observability | ✅ Done |
+| 7 | CI integration, polish, demo | ⏳ Next |
 ---
 
 ## What works today
@@ -38,6 +38,7 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 - **Two retrievers** — keyword baseline (negative control) and Chroma + MiniLM embeddings.
 - **HTTP service** with run persistence, background execution, list/fetch, and side-by-side comparison.
 - **Regression gate** with configurable thresholds, a CI-facing CLI, and a one-command demo.
+- **Streamlit dashboard** with Runs, Compare, and Gate views, reading from the same SQLite store.
 ---
 
 ## The Dataset
@@ -269,6 +270,7 @@ The script:
 **1. The gate refuses to judge unfinished work.** Early in Phase 5, we hit a case where a pending run was gated against a completed one. Because pending runs have empty metrics, the gate happily reported "everything improved!" — nonsense. Fixed by returning HTTP 409 if either run's status isn't `succeeded`. Comparing against incomplete data is worse than not comparing at all.
 
 **2. Threshold tuning is the hard part.** At `k=3`, chroma-vs-keyword produces a 0.05 drop on `hit_rate@3` and a 0.04 drop on `mrr` — right on the edge of a 0.05 threshold. Whether that counts as a regression is a judgment call the threshold encodes. Too tight, and every noise fluctuation fails the build. Too loose, and real regressions slip through. This is why the harness treats thresholds as **config, not code** — so a team can tune them per metric without touching the gate logic.
+
 ---
 ## Stack
 

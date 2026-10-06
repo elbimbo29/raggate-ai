@@ -29,7 +29,6 @@ RAG pipelines degrade silently. A prompt tweak, an embedding model swap, or a ch
 | 6 | Dashboard & observability | ✅ Done |
 | 7 | CI integration, polish, demo | ⏳ Next |
 ---
-
 ## What works today
 
 - **Golden dataset** with 20 curated cases over an 18-chunk AcmeDB corpus, validated by a CLI.

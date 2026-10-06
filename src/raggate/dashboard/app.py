@@ -107,6 +107,101 @@ def _render_runs_view(store: SQLiteRunStore) -> None:
                 cases_df = cases_df.drop(columns=[drop])
         st.dataframe(cases_df, use_container_width=True, hide_index=True)
 
+def _render_compare_view(store: SQLiteRunStore) -> None:
+    st.subheader("Compare runs")
+
+    records = store.list_runs(limit=100)
+    if len(records) < 2:
+        st.info("Need at least two runs to compare. Start more with `POST /eval/run`.")
+        return
+
+    labels = {
+        f"{r.id[:12]} | {r.kind} | {r.retriever_name} | {r.created_at}": r.id
+        for r in records
+    }
+    options = list(labels.keys())
+
+    col1, col2 = st.columns(2)
+    with col1:
+        base_label = st.selectbox("Baseline (good)", options, index=0)
+    with col2:
+        cand_label = st.selectbox("Candidate (new)", options, index=min(1, len(options) - 1))
+
+    base_id = labels[base_label]
+    cand_id = labels[cand_label]
+
+    if base_id == cand_id:
+        st.info("Pick two different runs to compare.")
+        return
+
+    baseline = store.get_run(base_id)
+    candidate = store.get_run(cand_id)
+    if baseline is None or candidate is None:
+        st.error("Run not found — try refreshing.")
+        return
+
+    if baseline.kind != candidate.kind:
+        st.warning(
+            f"Cannot compare different kinds: {baseline.kind} vs {candidate.kind}."
+        )
+        return
+
+    all_metrics = sorted(set(baseline.metrics) | set(candidate.metrics))
+    rows = []
+    for name in all_metrics:
+        b = baseline.metrics.get(name, 0.0)
+        c = candidate.metrics.get(name, 0.0)
+        delta = c - b
+        pct = (delta / b * 100) if b != 0 else 0.0
+        rows.append(
+            {
+                "metric": name,
+                "baseline": round(b, 4),
+                "candidate": round(c, 4),
+                "delta": round(delta, 4),
+                "pct": f"{pct:+.1f}%" if b != 0 else "—",
+            }
+        )
+
+    df = pd.DataFrame(rows)
+
+    # Summary cards
+    regressions = df[df["delta"] < -0.001]
+    improvements = df[df["delta"] > 0.001]
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Regressions", len(regressions))
+    c2.metric("Improvements", len(improvements))
+    c3.metric("Unchanged", len(df) - len(regressions) - len(improvements))
+
+    # Full delta table with color
+    st.markdown("### Metric deltas")
+
+    def _color_row(row):
+        if row["delta"] < -0.001:
+            return ["background-color: #ffe5e5"] * len(row)
+        if row["delta"] > 0.001:
+            return ["background-color: #e5ffe5"] * len(row)
+        return [""] * len(row)
+
+    styled = df.style.apply(_color_row, axis=1).format(
+        {"baseline": "{:.4f}", "candidate": "{:.4f}", "delta": "{:+.4f}"}
+    )
+    st.dataframe(styled, use_container_width=True, hide_index=True)
+
+    if len(regressions) > 0:
+        st.error(
+            f"{len(regressions)} metric(s) regressed. "
+            f"Worst: **{regressions.sort_values('delta').iloc[0]['metric']}** "
+            f"({regressions.sort_values('delta').iloc[0]['delta']:+.4f})"
+        )
+    elif len(improvements) > 0:
+        st.success(
+            f"All changes positive or neutral. "
+            f"{len(improvements)} metric(s) improved."
+        )
+    else:
+        st.info("No meaningful change between these runs.")
 
 # ---------- sidebar ----------
 
@@ -126,7 +221,9 @@ st.sidebar.button("Refresh")  # clicking reruns the script
 st.title("RAGGate AI")
 st.caption("Automated evaluation harness and regression gate for RAG pipelines.")
 
-view = st.sidebar.radio("View", ["Runs"])
+view = st.sidebar.radio("View", ["Runs", "Compare"])
 
 if view == "Runs":
     _render_runs_view(store)
+elif view == "Compare":
+    _render_compare_view(store)

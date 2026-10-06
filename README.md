@@ -272,6 +272,46 @@ The script:
 **2. Threshold tuning is the hard part.** At `k=3`, chroma-vs-keyword produces a 0.05 drop on `hit_rate@3` and a 0.04 drop on `mrr` — right on the edge of a 0.05 threshold. Whether that counts as a regression is a judgment call the threshold encodes. Too tight, and every noise fluctuation fails the build. Too loose, and real regressions slip through. This is why the harness treats thresholds as **config, not code** — so a team can tune them per metric without touching the gate logic.
 
 ---
+
+## Dashboard
+
+A Streamlit dashboard provides a human-readable view of everything the API and CLI produce. It reads from the same SQLite store the API writes to — no LLM calls, no cost, no separate database.
+
+```bash
+make dashboard
+# → http://localhost:8501
+```
+
+Three views:
+
+### Runs
+
+Recent runs in a sortable table with a KPI row (total / succeeded / failed / cost). Click any run to see its per-case results.
+
+![Runs view](docs/phase6-runs.png)
+
+### Compare
+
+Pick a baseline and a candidate. Deltas are shown per metric with red/green row highlighting and a summary banner. This is the visualization of `POST /eval/compare` — the view a reviewer would open before approving a change.
+
+![Compare view](docs/phase6-compare.png)
+
+### Gate
+
+Same two-run selection, but with **thresholds applied** — it runs the same `evaluate_gate` function the API and CLI use and shows a green **PASS** or red **FAIL** verdict, plus the regressions table. This is the same verdict CI would produce, rendered for a human.
+
+![Gate view](docs/phase6-gate.png)
+
+### A note on the choice of Streamlit
+
+Grafana is a stronger observability tool, and it was the right choice for a project like AegisAI where the *point* was production monitoring. For RAGGate AI, the dashboard is a developer aid — "what has the harness been doing?" Streamlit renders that with a single Python file and zero infrastructure, which is the right tradeoff here.
+
+### Known limitation
+
+The dashboard opens a SQLite connection to the same file the API writes to. If the API writes a new run while the dashboard is open, the dashboard may show stale data until the page is refreshed or the app is restarted. This is a small Streamlit + SQLite quirk, acceptable for a developer tool. A production dashboard would read through the API instead of the DB directly — a natural future iteration.
+
+---
+
 ## Stack
 
 | Concern | Choice |
@@ -282,10 +322,10 @@ The script:
 | Data validation | Pydantic v2 |
 | Tests | pytest |
 | Lint / format | ruff |
-| Storage (planned) | SQLite |
-| Evaluation (planned) | DeepEval, RAGAS |
-| Dashboard (planned) | Streamlit |
-| CI (planned) | GitHub Actions |
+| Storage | SQLite |
+| Evaluation | DeepEval, RAGAS |
+| Dashboard | Streamlit |
+| CI | GitHub Actions |
 
 ---
 

@@ -359,4 +359,4 @@ What a production deployment would add:
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
